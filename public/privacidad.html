@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de privacidad · Webby</title>
+  <meta name="description" content="Qué datos usa Webby, para qué y cómo se protegen.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { --bg: #F6F7F9; --card: #FFFFFF; --text: #15171C; --muted: #5B6170; --border: #E3E6EC; --link: #1C4ED8; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0F1115; --card: #171A21; --text: #EDEFF3; --muted: #A2A8B5; --border: #2A2F3A; --link: #8AB0FF; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    h1 { font-size: 28px; line-height: 1.2; margin: 0 0 4px; }
+    h2 { font-size: 18px; margin: 28px 0 8px; }
+    p, li { color: var(--text); }
+    .muted { color: var(--muted); font-size: 14px; }
+    a { color: var(--link); }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="/info.html">← Webby</a></p>
+  <div class="card">
+    <h1>Política de privacidad de Webby</h1>
+    <p class="muted">Última actualización: 16 de noviembre de 2026</p>
+
+    <p>Webby es un panel privado que usa únicamente su propietario para seguir el rendimiento de sus propias webs:
+      <strong>armamuebles.es</strong>, <strong>obralocalmadrid.es</strong> y <strong>mudanzas360.es</strong>.
+      No es un servicio abierto al público ni tiene otros usuarios.</p>
+
+    <h2>Qué datos de Google usa</h2>
+    <p>Con el permiso expreso del propietario, Webby accede <strong>solo en modo lectura</strong> a:</p>
+    <ul>
+      <li><strong>Google Search Console</strong> (<code>webmasters.readonly</code>): impresiones, clics, posición media y búsquedas de sus propias webs.</li>
+      <li><strong>Google Analytics</strong> (<code>analytics.readonly</code>): visitas, usuarios y eventos clave de esas mismas webs.</li>
+      <li>La dirección de correo de la cuenta de Google, para saber qué cuenta está conectada.</li>
+    </ul>
+    <p>Webby no puede modificar nada en Google, no lee correos, contactos, archivos ni ningún otro dato de la cuenta.</p>
+
+    <h2>Para qué se usan</h2>
+    <p>Exclusivamente para mostrar al propietario la evolución de sus webs y para que sus asistentes de análisis le den recomendaciones.
+      Los datos no se venden, no se comparten con terceros con fines publicitarios y no se usan para crear perfiles de personas.</p>
+
+    <h2>Dónde se guardan y cómo se protegen</h2>
+    <ul>
+      <li>Los datos se guardan en una base de datos privada (Supabase) a la que solo puede acceder la cuenta del propietario.</li>
+      <li>El permiso de Google se guarda cifrado y nunca se muestra en la aplicación.</li>
+      <li>Todas las conexiones van cifradas (HTTPS).</li>
+    </ul>
+
+    <h2>Servicios que intervienen</h2>
+    <ul>
+      <li><strong>Supabase</strong>: base de datos y funciones del servidor.</li>
+      <li><strong>Vercel</strong>: alojamiento de la aplicación web.</li>
+      <li><strong>Anthropic (Claude)</strong>: cuando el propietario pregunta a un asistente, se envía a Claude un resumen de las métricas para generar la respuesta. Anthropic no usa estos datos para entrenar sus modelos.</li>
+    </ul>
+
+    <h2>Cuánto tiempo se conservan y cómo borrarlos</h2>
+    <p>Las métricas se conservan mientras el propietario use Webby. El acceso a Google puede retirarse en cualquier momento desde
+      <a href="https://myaccount.google.com/permissions" rel="noopener">myaccount.google.com/permissions</a>; al hacerlo, Webby deja de recibir datos
+      y el propietario puede borrar los ya guardados.</p>
+
+    <h2>Uso de los datos de las API de Google</h2>
+    <p>El uso y la transferencia a cualquier otra aplicación de la información recibida de las API de Google se ajustan a la
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Política de datos de usuario de los servicios de las API de Google</a>,
+      incluidos los requisitos de uso limitado.</p>
+
+    <h2>Contacto</h2>
+    <p>Para cualquier consulta sobre esta política, usa el formulario o el teléfono de contacto de
+      <a href="https://armamuebles.es" rel="noopener">armamuebles.es</a>.</p>
+  </div>
+</main>
+</body>
+</html>

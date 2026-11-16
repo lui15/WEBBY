@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webby</title>
+  <meta name="description" content="Webby es el panel privado del propietario de ArmaMuebles, ObraLocal Madrid y Mudanzas360 para seguir sus webs.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root { --bg: #F6F7F9; --card: #FFFFFF; --text: #15171C; --muted: #5B6170; --border: #E3E6EC; --btn: #15171C; --btn-text: #FFFFFF; --link: #1C4ED8; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0F1115; --card: #171A21; --text: #EDEFF3; --muted: #A2A8B5; --border: #2A2F3A; --btn: #EDEFF3; --btn-text: #0F1115; --link: #8AB0FF; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 16px 64px; }
+    .head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .head img { width: 48px; height: 48px; }
+    h1 { font-size: 32px; line-height: 1.15; margin: 0; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    ul { padding-left: 20px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .btn { display: inline-block; margin-top: 8px; padding: 12px 20px; border-radius: 999px; background: var(--btn); color: var(--btn-text); text-decoration: none; font-weight: 600; }
+    a { color: var(--link); }
+    footer { margin-top: 24px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="head"><img src="/logo.svg" alt=""><h1>Webby</h1></div>
+  <div class="card">
+    <p><strong>Webby</strong> es el panel privado del propietario de tres negocios de servicios en Madrid
+      (<a href="https://armamuebles.es" rel="noopener">ArmaMuebles</a>,
+      <a href="https://obralocalmadrid.es" rel="noopener">ObraLocal Madrid</a> y
+      <a href="https://mudanzas360.es" rel="noopener">Mudanzas360</a>) para seguir y mejorar sus webs.</p>
+    <ul>
+      <li>Reúne cada día, en modo solo lectura, los datos de Google Search Console y Google Analytics de esas tres webs.</li>
+      <li>Muestra cuánta gente las ve en Google, cuántas personas entran y cuántas piden presupuesto.</li>
+      <li>Incluye asistentes que analizan esos datos y proponen mejoras, que el propietario revisa y aprueba.</li>
+    </ul>
+    <p class="muted">Es una herramienta de uso personal: solo puede entrar la cuenta del propietario.</p>
+    <a class="btn" href="/entrar">Entrar</a>
+  </div>
+  <footer class="muted"><a href="/privacidad.html">Política de privacidad</a></footer>
+</main>
+</body>
+</html>

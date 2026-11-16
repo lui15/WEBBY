@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/auth/google", "destination": "https://cheyhtidyfthlgodzrhh.supabase.co/functions/v1/google-oauth" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [{ "source": "/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }]
+}
