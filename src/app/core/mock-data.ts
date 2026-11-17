@@ -52,7 +52,7 @@ export const AGENTS: Agent[] = [
     especialidad: 'Google y Maps',
     descripcion: 'Te ayuda a salir más arriba en Google y en Google Maps en Madrid.',
     color: '#047857',
-    avisos: 2,
+    avisos: 0,
     sugerencias: [
       '¿Cómo salgo más en Madrid?',
       '¿Qué búsquedas me traen clientes?',
@@ -76,7 +76,7 @@ export const AGENTS: Agent[] = [
     especialidad: 'Google Ads',
     descripcion: 'Te propone campañas de Google Ads cuando bajan las solicitudes. Nunca las publica.',
     color: '#1C4ED8',
-    avisos: 1,
+    avisos: 0,
     sugerencias: ['¿Me conviene anunciarme?', '¿Cuánto costaría una campaña?'],
   },
   {
@@ -96,7 +96,7 @@ export const AGENTS: Agent[] = [
     especialidad: 'Código y diseño',
     descripcion: 'Lee el código de tus webs y propone mejoras. Solo cambia algo si tú apruebas.',
     color: '#6D28D9',
-    avisos: 1,
+    avisos: 0,
     sugerencias: ['¿Mi web carga rápido?', '¿Qué mejorarías del formulario?'],
   },
 ];

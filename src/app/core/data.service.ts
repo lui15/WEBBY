@@ -58,15 +58,36 @@ interface DbMessage {
   id: string;
   rol: 'yo' | 'agente';
   contenido: string;
-  adjuntos_json: { propuestas?: { id: string; titulo: string }[] } | null;
+  created_at?: string;
+  adjuntos_json: {
+    propuestas?: { id: string; titulo: string }[];
+    traspasos?: { agente: AgentId; titulo: string }[];
+    traspaso?: { de: AgentId; titulo: string; propuesta_id?: string };
+  } | null;
 }
 
-const toChat = (m: DbMessage): ChatMessage => ({
-  id: m.id,
-  rol: m.rol,
-  texto: m.contenido,
-  propuestas: m.adjuntos_json?.propuestas,
-});
+const toChat = (m: DbMessage): ChatMessage => {
+  const t = m.adjuntos_json?.traspaso;
+  return {
+    id: m.id,
+    rol: t ? 'nota' : m.rol,
+    texto: m.contenido,
+    createdAt: m.created_at,
+    propuestas: m.adjuntos_json?.propuestas,
+    traspasos: m.adjuntos_json?.traspasos,
+    traspaso: t ? { de: t.de, titulo: t.titulo, propuestaId: t.propuesta_id } : undefined,
+  };
+};
+
+/** Último mensaje de cada chat (lista de conversaciones). */
+export interface ChatPreview {
+  texto: string;
+  rol: string;
+  createdAt: string;
+}
+
+/** Los avisos de traspasos y revisiones ya están como mensaje en el chat; no se duplican. */
+const esTraspaso = (titulo: string) => /te ha pasado:|^Revisión de /i.test(titulo);
 
 /** Clave pública VAPID (base64url) a bytes, como pide PushManager.subscribe. */
 function urlB64(b64: string): Uint8Array<ArrayBuffer> {
@@ -74,6 +95,37 @@ function urlB64(b64: string): Uint8Array<ArrayBuffer> {
   const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
   const out = new Uint8Array(new ArrayBuffer(raw.length));
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+/** Un día de una web en metrics_daily (null = ese dato aún no ha llegado). */
+export interface DailyPoint {
+  siteId: SiteId;
+  fecha: string;
+  impresiones: number | null;
+  clics: number | null;
+  usuarios: number | null;
+  conversiones: number | null;
+}
+
+/** Serie de ejemplo con forma creíble, para cuando Google no está conectado. */
+function demoDaily(days: number): DailyPoint[] {
+  const base: Record<SiteId, [number, number, number]> = {
+    obralocal: [177, 6.4, 1.1], mudanzas: [330, 10, 0.7], armamuebles: [123, 5.4, 0.9],
+  };
+  const out: DailyPoint[] = [];
+  for (let i = days; i >= 2; i--) {
+    const fecha = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+    const t = (days - i) / days;
+    for (const [id, [imp, cli, conv]] of Object.entries(base) as [SiteId, [number, number, number]][]) {
+      const wave = 1 + 0.18 * Math.sin(i / 2.3 + id.length) + (id === 'armamuebles' ? 0.5 * t : id === 'mudanzas' ? -0.15 * t : 0.25 * t);
+      out.push({
+        siteId: id, fecha,
+        impresiones: Math.round(imp * wave), clics: Math.round(cli * wave),
+        usuarios: Math.round(cli * wave * 1.6), conversiones: Math.round(conv * wave * (i % 3 === 0 ? 1.4 : 0.7)),
+      });
+    }
+  }
   return out;
 }
 
@@ -134,6 +186,10 @@ export class DataService {
   /** Agente que está pensando una respuesta ahora mismo */
   readonly thinking = signal<AgentId | null>(null);
   readonly chatError = signal<string | null>(null);
+  /** Agentes trabajando en segundo plano (p. ej. respondiendo a un traspaso) */
+  readonly working = signal<AgentId[]>([]);
+  /** Último mensaje de cada chat, para la lista de conversaciones */
+  readonly chatPreviews = signal<Partial<Record<AgentId, ChatPreview | null>>>({});
 
   constructor() {
     effect(() => {
@@ -155,6 +211,7 @@ export class DataService {
 
   private reset(): void {
     this.funnels.set({});
+    this.daily.set(null);
     this.queryCache.set({});
     this.todayCache.set({});
     this._actions.set([]);
@@ -196,6 +253,27 @@ export class DataService {
     }
     this.datosHasta.set(rows.map((r) => r.datos_hasta).sort().at(-1) ?? null);
     this.funnels.update((f) => ({ ...f, [days]: rec }));
+  }
+
+  /** Métricas día a día de las 3 webs (para comparar su evolución). */
+  readonly daily = signal<DailyPoint[] | null>(null);
+
+  async loadDaily(days = 60, force = false): Promise<void> {
+    if (!force && this.daily()) return;
+    if (this.demo()) {
+      this.daily.set(demoDaily(days));
+      return;
+    }
+    const desde = new Date(Date.now() - (days + 3) * 86_400_000).toISOString().slice(0, 10);
+    const { data } = await this.sb.client
+      .from('metrics_daily')
+      .select('site_id, fecha, impresiones, clics, usuarios, conversiones')
+      .gte('fecha', desde)
+      .order('fecha');
+    this.daily.set((data ?? []).map((d) => ({
+      siteId: d.site_id as SiteId, fecha: d.fecha as string,
+      impresiones: d.impresiones, clics: d.clics, usuarios: d.usuarios, conversiones: d.conversiones,
+    })));
   }
 
   async loadQueries(site: SiteId, days: number, force = false): Promise<void> {
@@ -273,6 +351,7 @@ export class DataService {
     try {
       const r = await this.sb.fn<{ ok: boolean; error?: string; problemas?: string[] }>('sync-google', { action: 'sync', days });
       this.funnels.set({});
+      this.daily.set(null);
       this.queryCache.set({});
       await this.loadAll();
       return r.ok ? null : r.error ?? 'No se pudieron traer los datos.';
@@ -341,8 +420,103 @@ export class DataService {
     return this.demo() ? QUERIES[id] : (this.queryCache()[`${id}-${days}`] ?? null);
   }
 
+  /** Mensajes del chat con un agente, con sus avisos de la revisión diaria intercalados por fecha. */
   messages(agentId: AgentId): ChatMessage[] {
-    return this.chats()[agentId] ?? [];
+    const msgs = this.chats()[agentId] ?? [];
+    const avisos: ChatMessage[] = this._avisos()
+      .filter((a) => a.agentId === agentId && !esTraspaso(a.titulo))
+      .map((a) => ({
+        id: `aviso-${a.id}`,
+        rol: 'agente' as const,
+        texto: a.texto,
+        createdAt: a.createdAt,
+        aviso: { id: a.id, titulo: a.titulo, siteId: a.siteId },
+      }));
+    if (!avisos.length) return msgs;
+    // Los mensajes sin fecha (recién enviados) van siempre al final.
+    const t = (m: ChatMessage) => (m.createdAt ? new Date(m.createdAt).getTime() : Number.MAX_SAFE_INTEGER);
+    return [...msgs, ...avisos].sort((a, b) => t(a) - t(b));
+  }
+
+  /** Avisos sin leer de cada agente (el globito). */
+  unreadFor(agentId: AgentId): number {
+    return this._avisos().filter((a) => a.agentId === agentId && !a.leido).length;
+  }
+
+  /** Al abrir el chat de un agente, sus avisos se dan por leídos. */
+  async markAgentRead(agentId: AgentId): Promise<void> {
+    const ids = this._avisos().filter((a) => a.agentId === agentId && !a.leido).map((a) => a.id);
+    if (ids.length) await this.markAvisosRead(ids);
+  }
+
+  async loadChatPreviews(): Promise<void> {
+    try {
+      const r = await this.sb.fn<{ ok: boolean; chats?: Record<AgentId, { contenido: string; rol: string; created_at: string } | null> }>(
+        'agent-chat', { action: 'overview' });
+      if (!r.ok || !r.chats) return;
+      const out: Partial<Record<AgentId, ChatPreview | null>> = {};
+      for (const [id, m] of Object.entries(r.chats) as [AgentId, { contenido: string; rol: string; created_at: string } | null][]) {
+        out[id] = m ? { texto: m.contenido, rol: m.rol, createdAt: m.created_at } : null;
+      }
+      this.chatPreviews.set(out);
+    } catch {
+      /* sin conexión */
+    }
+  }
+
+  /** Un agente revisa tus webs ahora y te escribe en su chat (en segundo plano). */
+  async reviewAgent(agentId: AgentId, foco = ''): Promise<string | null> {
+    if (this.working().includes(agentId) || this.thinking() === agentId) return null;
+    this.working.update((w) => [...w, agentId]);
+    try {
+      await this.loadChat(agentId);
+      const pedido: ChatMessage = {
+        id: crypto.randomUUID(), rol: 'yo', createdAt: new Date().toISOString(),
+        texto: foco ? `Revisión pedida. Fíjate sobre todo en: ${foco}` : 'Revisión pedida: revisa ahora mis webs.',
+      };
+      this.chats.update((c) => ({ ...c, [agentId]: [...(c[agentId] ?? []), pedido] }));
+      const r = await this.sb.fn<{ ok: boolean; error?: string; mensaje?: DbMessage | null }>('agent-chat', {
+        action: 'review', agent: agentId, foco,
+      });
+      if (!r.ok) return r.error ?? 'No pudo revisar.';
+      await this.loadChat(agentId, true);
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    } finally {
+      this.working.update((w) => w.filter((x) => x !== agentId));
+      void this.loadChatPreviews();
+      void this.loadAvisos();
+      void this.loadProposals();
+    }
+  }
+
+  /** Todo el equipo revisa a la vez. Devuelve los errores que haya, o null. */
+  readonly reviewing = computed(() => this.working().length > 0);
+
+  async reviewAll(foco = ''): Promise<string | null> {
+    const errs = (await Promise.all(this.agents.map((a) => this.reviewAgent(a.id, foco)))).filter(Boolean);
+    return errs.length ? (errs[0] as string) : null;
+  }
+
+  /** El agente que ha recibido un traspaso lo lee y responde con su plan (en segundo plano). */
+  async continueAgent(agentId: AgentId): Promise<void> {
+    if (this.working().includes(agentId)) return;
+    this.working.update((w) => [...w, agentId]);
+    try {
+      await this.loadChat(agentId, true);
+      const r = await this.sb.fn<{ ok: boolean; mensaje?: DbMessage | null }>('agent-chat', { action: 'continue', agent: agentId });
+      if (r.ok && r.mensaje) {
+        this.chats.update((c) => ({ ...c, [agentId]: [...(c[agentId] ?? []), toChat(r.mensaje!)] }));
+        if (r.mensaje.adjuntos_json?.propuestas?.length) await this.loadProposals();
+      }
+    } catch {
+      /* se verá al volver a abrir el chat */
+    } finally {
+      this.working.update((w) => w.filter((x) => x !== agentId));
+      void this.loadChatPreviews();
+      void this.loadAvisos();
+    }
   }
 
   // ------------------------------------------------------------------ escritura
@@ -367,7 +541,7 @@ export class DataService {
   async send(agentId: AgentId, texto: string): Promise<void> {
     if (this.thinking()) return;
     this.chatError.set(null);
-    const mine: ChatMessage = { id: crypto.randomUUID(), rol: 'yo', texto };
+    const mine: ChatMessage = { id: crypto.randomUUID(), rol: 'yo', texto, createdAt: new Date().toISOString() };
     this.chats.update((c) => ({ ...c, [agentId]: [...(c[agentId] ?? []), mine] }));
     this.thinking.set(agentId);
     try {
@@ -379,10 +553,15 @@ export class DataService {
         return;
       }
       this.chats.update((c) => ({ ...c, [agentId]: [...(c[agentId] ?? []), toChat(r.mensaje!)] }));
-      if (r.mensaje.adjuntos_json?.propuestas?.length) await this.loadProposals();
+      const adj = r.mensaje.adjuntos_json;
+      if (adj?.propuestas?.length || adj?.traspasos?.length) await this.loadProposals();
+      // Traspasos: el otro agente lo recibe en su chat y se pone a trabajar.
+      for (const t of adj?.traspasos ?? []) void this.continueAgent(t.agente);
+      if (adj?.traspasos?.length) void this.loadAvisos();
     } catch (e) {
       this.chatError.set((e as Error).message);
     } finally {
+      void this.loadChatPreviews();
       this.thinking.set(null);
     }
   }

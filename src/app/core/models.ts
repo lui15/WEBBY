@@ -84,8 +84,16 @@ export interface Proposal {
 
 export interface ChatMessage {
   id: string;
-  rol: 'yo' | 'agente';
+  /** 'nota' = aviso de Webby dentro del chat (p. ej. «SEO te ha pasado: …») */
+  rol: 'yo' | 'agente' | 'nota';
   texto: string;
+  createdAt?: string;
+  /** El mensaje es un aviso de la revisión diaria */
+  aviso?: { id: string; titulo: string; siteId: SiteId | null };
+  /** Nota de traspaso: qué agente lo pasó */
+  traspaso?: { de: AgentId; titulo: string; propuestaId?: string };
+  /** Traspasos que hizo el agente en esta respuesta */
+  traspasos?: { agente: AgentId; titulo: string }[];
   lista?: { etiqueta: string; valor: number; detalle: string }[];
   accion?: { texto: string; agentId: AgentId };
   /** Propuestas que el agente guardó en esta respuesta */

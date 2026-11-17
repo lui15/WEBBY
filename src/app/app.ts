@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { IonApp, IonIcon, IonRouterOutlet } from '@ionic/angular';
 import { DataService } from './core/data.service';
+import { HuellaService } from './core/huella.service';
 import { SupabaseService } from './core/supabase.service';
 import { AppLogo } from './shared/app-logo';
 
@@ -16,7 +17,7 @@ interface Tab {
   imports: [IonApp, IonRouterOutlet, IonIcon, RouterLink, RouterLinkActive, AppLogo],
   template: `
     <ion-app>
-      @if (sb.session()) {
+      @if (sb.session() && !huella.bloqueada()) {
       <nav class="nav" aria-label="Secciones">
         <p class="brand"><app-logo [size]="36" /><span class="num">Webby</span></p>
         @for (t of tabs; track t.path) {
@@ -50,7 +51,7 @@ interface Tab {
     .nav {
       order: 2; display: flex; justify-content: space-around;
       background: var(--nav); border-top: 1px solid var(--border);
-      padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+      padding: 4px 4px calc(4px + var(--sab));
     }
     .brand { display: none; }
     .tab {
@@ -79,6 +80,7 @@ interface Tab {
 export class App {
   protected readonly data = inject(DataService);
   protected readonly sb = inject(SupabaseService);
+  protected readonly huella = inject(HuellaService);
   protected readonly tabs: Tab[] = [
     { path: '/inicio', label: 'Inicio', icon: 'home-outline' },
     { path: '/webs', label: 'Webs', icon: 'bar-chart-outline' },

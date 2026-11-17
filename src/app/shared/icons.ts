@@ -5,6 +5,7 @@ import {
   gridOutline, homeOutline, logInOutline, micOutline, moonOutline, notificationsOutline,
   peopleOutline, sendOutline, sunnyOutline, documentTextOutline, refreshOutline,
   searchOutline, brushOutline, megaphoneOutline, podiumOutline, codeSlashOutline, gitMergeOutline, pencilOutline, checkmarkCircleOutline, closeCircleOutline, starOutline, locationOutline,
+  menuOutline, swapHorizontalOutline, arrowUpOutline, sparklesOutline,
 } from 'ionicons/icons';
 
 /** Iconos de línea usados en la app (Ionicons outline). */
@@ -15,5 +16,6 @@ export function registerIcons(): void {
     gridOutline, homeOutline, logInOutline, micOutline, moonOutline, notificationsOutline,
     peopleOutline, sendOutline, sunnyOutline, documentTextOutline, refreshOutline,
     searchOutline, brushOutline, megaphoneOutline, podiumOutline, codeSlashOutline, gitMergeOutline, pencilOutline, checkmarkCircleOutline, closeCircleOutline, starOutline, locationOutline,
+    menuOutline, swapHorizontalOutline, arrowUpOutline, sparklesOutline,
   });
 }

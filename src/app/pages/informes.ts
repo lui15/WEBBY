@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { Router } from '@angular/router';
 import { DataService } from '../core/data.service';
+import { HuellaService, WEBBY_URL } from '../core/huella.service';
 import { SupabaseService } from '../core/supabase.service';
 import { delta, fmt, shortRange } from '../core/format';
 import { SiteFilter, SiteId, WeeklyReport } from '../core/models';
@@ -126,15 +127,20 @@ import { PageHeader } from '../shared/page-header';
         </div>
         @if (huella) {
           <button type="button" class="btn wide fp" (click)="activarHuella()">
-            <ion-icon name="finger-print-outline" aria-hidden="true" /> {{ huellaMsg() ?? 'Entrar con huella en este móvil' }}
+            <ion-icon name="finger-print-outline" aria-hidden="true" />
+            {{ huellaMsg() ?? (huellaActiva() ? 'Volver a guardar mi huella' : 'Entrar con huella en este dispositivo') }}
           </button>
+        } @else if (otroDominio) {
+          <a class="btn wide fp" [href]="webbyUrl">
+            <ion-icon name="finger-print-outline" aria-hidden="true" /> Abrir en webby.armamuebles.es para usar la huella
+          </a>
         }
         <button type="button" class="btn-link small out" (click)="signOut()">Cerrar sesión</button>
       </div>
     </ion-content>
   `,
   styles: `
-    .fp { margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .fp { margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--text); text-align: center; }
     .latest { display: flex; flex-direction: column; gap: 12px; }
     .new { align-self: flex-start; background: var(--soft-green); color: var(--up); }
     .summary { margin: 0; font-family: var(--font-title); font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; }
@@ -176,11 +182,16 @@ export class InformesPage {
   private readonly sb = inject(SupabaseService);
   private readonly router = inject(Router);
 
-  protected readonly huella = this.sb.passkeySupported();
+  private readonly hs = inject(HuellaService);
+  protected readonly huella = this.hs.modo;
+  protected readonly otroDominio = this.hs.otroDominio;
+  protected readonly webbyUrl = WEBBY_URL;
   protected readonly huellaMsg = signal<string | null>(null);
+  protected readonly huellaActiva = signal(this.hs.activada());
 
   protected async activarHuella(): Promise<void> {
-    const err = await this.sb.registerPasskey();
+    const err = await this.hs.activar();
+    if (!err) this.huellaActiva.set(true);
     this.huellaMsg.set(err ?? 'Huella activada: la próxima vez entra con ella.');
   }
 
