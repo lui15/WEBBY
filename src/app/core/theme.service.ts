@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, signal } from '@angular/core';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 type Theme = 'light' | 'dark';
 const KEY = 'webby-theme';
@@ -20,6 +22,13 @@ export class ThemeService {
 
   constructor() {
     this.media.addEventListener('change', (e) => this.systemDark.set(e.matches));
+    // App de Android: la hora y los iconos de arriba, oscuros en modo claro y claros en modo oscuro.
+    if (Capacitor.isNativePlatform()) {
+      effect(() => {
+        const dark = this.isDark();
+        void StatusBar.setStyle({ style: dark ? Style.Dark : Style.Light }).catch(() => undefined);
+      });
+    }
   }
 
   toggle(): void {

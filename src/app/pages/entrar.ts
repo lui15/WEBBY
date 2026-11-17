@@ -2,11 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { IonContent, IonIcon } from '@ionic/angular';
+import { HuellaService, WEBBY_URL } from '../core/huella.service';
 import { SupabaseService } from '../core/supabase.service';
 import { AppLogo } from '../shared/app-logo';
 import { ThemeToggle } from '../shared/theme-toggle';
 
-type Paso = 'entrar' | 'ofrecer-huella';
+type Paso = 'entrar' | 'ofrecer-huella' | 'desbloquear';
 
 @Component({
   selector: 'app-entrar',
@@ -34,9 +35,23 @@ type Paso = 'entrar' | 'ofrecer-huella';
           </ul>
         </header>
 
-        @if (paso() === 'entrar') {
+        @if (paso() === 'desbloquear') {
+          <section class="card panel offer">
+            <span class="fp" aria-hidden="true"><ion-icon name="finger-print-outline" /></span>
+            <h2>Hola de nuevo, Luis</h2>
+            <p class="muted">Pon tu huella para abrir Webby.</p>
+            @if (error()) {
+              <p class="err" role="alert">{{ error() }}</p>
+            }
+            <button type="button" class="btn btn-solid big" (click)="desbloquear()" [disabled]="!!busy()">
+              <ion-icon name="finger-print-outline" aria-hidden="true" />
+              {{ busy() ? 'Esperando tu huella…' : 'Desbloquear con huella' }}
+            </button>
+            <button type="button" class="btn-link" (click)="usarContrasena()">Usar mi contraseña</button>
+          </section>
+        } @else if (paso() === 'entrar') {
           <section class="card panel">
-            @if (huella) {
+            @if (huella === 'passkey') {
               <button type="button" class="btn btn-solid big" (click)="conHuella()" [disabled]="busy()">
                 <ion-icon name="finger-print-outline" aria-hidden="true" />
                 {{ busy() === 'huella' ? 'Esperando tu huella…' : 'Entrar con huella' }}
@@ -66,12 +81,18 @@ type Paso = 'entrar' | 'ofrecer-huella';
               </button>
             </form>
             <p class="hint small muted">Es la misma cuenta que usas en tu app de trabajos.</p>
+            @if (otroDominio) {
+              <a class="go small" [href]="webbyUrl">
+                <ion-icon name="finger-print-outline" aria-hidden="true" />
+                Para entrar con tu huella, abre Webby en webby.armamuebles.es
+              </a>
+            }
           </section>
         } @else {
           <section class="card panel offer">
             <span class="fp" aria-hidden="true"><ion-icon name="finger-print-outline" /></span>
             <h2>¿Entrar con tu huella la próxima vez?</h2>
-            <p class="muted">Sin escribir la contraseña. Tu huella no sale de este móvil: solo confirma que eres tú.</p>
+            <p class="muted">Sin escribir la contraseña. Tu huella no sale de este dispositivo: solo confirma que eres tú.</p>
             @if (error()) {
               <p class="err" role="alert">{{ error() }}</p>
             }
@@ -153,6 +174,11 @@ type Paso = 'entrar' | 'ofrecer-huella';
     .offer p { margin: 0; line-height: 1.5; }
     .offer .big { width: 100%; margin-top: 8px; }
 
+    .go {
+      display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
+      color: var(--text); font-weight: 600; text-decoration: none; text-align: center;
+    }
+    .go ion-icon { font-size: 18px; flex: none; }
     .foot { text-align: center; }
     .foot a { color: inherit; }
   `,
@@ -160,7 +186,36 @@ type Paso = 'entrar' | 'ofrecer-huella';
 export class EntrarPage {
   private readonly sb = inject(SupabaseService);
   private readonly router = inject(Router);
-  protected readonly huella = this.sb.passkeySupported();
+  private readonly hs = inject(HuellaService);
+  /** 'passkey' (web en webby.armamuebles.es), 'nativa' (app Android) o null */
+  protected readonly huella = this.hs.modo;
+  protected readonly otroDominio = this.hs.otroDominio;
+  protected readonly webbyUrl = WEBBY_URL;
+
+  constructor() {
+    // App de Android con sesión guardada y huella activada: pedir la huella directamente.
+    void this.sb.initialized.then(() => {
+      if (this.sb.session() && this.hs.bloqueada()) {
+        this.paso.set('desbloquear');
+        void this.desbloquear();
+      }
+    });
+  }
+
+  protected async desbloquear(): Promise<void> {
+    this.busy.set('huella');
+    this.error.set(null);
+    const err = await this.hs.entrar();
+    this.busy.set(false);
+    if (!err) this.entrarEnWebby();
+    else if (err !== 'Cancelado.') this.error.set(err);
+  }
+
+  protected async usarContrasena(): Promise<void> {
+    await this.sb.signOut();
+    this.error.set(null);
+    this.paso.set('entrar');
+  }
   protected readonly email = signal('');
   protected readonly password = signal('');
   protected readonly ver = signal(false);
@@ -175,7 +230,7 @@ export class EntrarPage {
   protected async conHuella(): Promise<void> {
     this.busy.set('huella');
     this.error.set(null);
-    const err = await this.sb.signInWithPasskey();
+    const err = await this.hs.entrar();
     this.busy.set(false);
     if (err) this.error.set(err);
     else if (this.sb.session()) this.entrarEnWebby();
@@ -190,22 +245,23 @@ export class EntrarPage {
       this.error.set(err);
       return;
     }
-    const yaTiene = localStorage.getItem('webby-huella');
-    if (this.huella && !yaTiene) this.paso.set('ofrecer-huella');
+    // Acaba de escribir la contraseña: en la app nativa no hace falta pedir también la huella.
+    this.hs.desbloqueada.set(true);
+    if (this.huella && !this.hs.preguntada() && (await this.hs.disponible())) this.paso.set('ofrecer-huella');
     else this.entrarEnWebby();
   }
 
   protected async activarHuella(): Promise<void> {
     this.busy.set('huella');
     this.error.set(null);
-    const err = await this.sb.registerPasskey();
+    const err = await this.hs.activar();
     this.busy.set(false);
     if (err) this.error.set(err);
     else this.entrarEnWebby();
   }
 
   protected ahoraNo(): void {
-    localStorage.setItem('webby-huella', 'no');
+    this.hs.rechazar();
     this.entrarEnWebby();
   }
 }

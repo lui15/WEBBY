@@ -9,6 +9,7 @@ import { ChipOption, ChipSelector } from '../shared/chip-selector';
 import { PageHeader } from '../shared/page-header';
 import { SegmentOption, Segmented } from '../shared/segmented';
 import { Skeleton } from '../shared/skeleton';
+import { SiteCompare } from '../shared/site-compare';
 import { StatCard } from '../shared/stat-card';
 
 const DAYS: Record<Exclude<Period, 'comparar'>, number> = { hoy: 1, '7d': 7, '30d': 30 };
@@ -16,10 +17,10 @@ const DAYS: Record<Exclude<Period, 'comparar'>, number> = { hoy: 1, '7d': 7, '30
 @Component({
   selector: 'app-webs',
   host: { class: 'ion-page' },
-  imports: [IonContent, IonIcon, PageHeader, ChipSelector, Segmented, StatCard, Skeleton],
+  imports: [IonContent, IonIcon, PageHeader, ChipSelector, Segmented, StatCard, Skeleton, SiteCompare],
   template: `
     <ion-content>
-      <app-page-header [kicker]="site().dominio" title="Tus webs" />
+      <app-page-header [kicker]="period() === 'comparar' ? 'Las 3 webs, lado a lado' : site().dominio" title="Tus webs" />
       <div class="page" [style.--site]="'var(' + site().colorVar + ')'" [style.--site-soft]="'var(' + site().softVar + ')'">
 
         @switch (data.google().estado) {
@@ -69,21 +70,37 @@ const DAYS: Record<Exclude<Period, 'comparar'>, number> = { hoy: 1, '7d': 7, '30
         @if (data.loading()) {
           <div class="grid-2"><app-skeleton [rows]="5" /><app-skeleton [rows]="4" /></div>
         } @else if (period() === 'comparar') {
-          <div class="compare">
-            @for (s of data.sites; track s.id) {
-              @let f = data.funnel(s.id, 7);
-              <section class="card" [style.--site]="'var(' + s.colorVar + ')'">
-                <h2 class="card-title cmp-title"><span class="dot"></span>{{ s.nombre }}</h2>
-                <dl>
-                  <dt>Te vieron en Google</dt><dd class="num">{{ fmt(f.vieron) }}</dd>
-                  <dt>Entraron desde Google</dt><dd class="num">{{ fmt(f.entraron) }}</dd>
-                  <dt>Pidieron precio</dt><dd class="num">{{ f.contactaron }}</dd>
-                  <dt>De cada 100 que te ven, entran</dt><dd class="num">{{ pct(f.entraron, f.vieron) }}</dd>
-                </dl>
-              </section>
-            }
-          </div>
-          <p class="small muted">{{ delayText() }}</p>
+          <app-site-compare />
+
+          <section class="card">
+            <div class="card-head">
+              <h2 class="card-title">Todo de un vistazo</h2>
+              <span class="small muted">últimos 7 días</span>
+            </div>
+            <div class="table-wrap">
+              <table class="side">
+                <thead>
+                  <tr>
+                    <th scope="col"><span class="sr-only">Dato</span></th>
+                    @for (s of data.sites; track s.id) {
+                      <th scope="col"><span class="dot" [style.background]="'var(' + s.colorVar + ')'"></span>{{ s.nombre }}</th>
+                    }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (r of sideRows(); track r.label) {
+                    <tr>
+                      <th scope="row">{{ r.label }}<span>{{ r.hint }}</span></th>
+                      @for (c of r.cells; track $index) {
+                        <td [class.best]="c.best">{{ c.text }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted tnote">En negrita, la web que mejor va en cada fila. {{ delayText() }}</p>
+          </section>
         } @else {
           <div class="grid-2">
             <section class="card">
@@ -220,13 +237,16 @@ const DAYS: Record<Exclude<Period, 'comparar'>, number> = { hoy: 1, '7d': 7, '30
     @media (min-width: 720px) { .gbp { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
     .gbp .num { margin: 0; font-size: 28px; line-height: 1.1; }
     .gbp p.small { margin: 4px 0 0; line-height: 1.35; }
-    .compare { display: grid; gap: var(--gap); }
-    @media (min-width: 720px) { .compare { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    .cmp-title { display: flex; align-items: center; gap: 8px; }
-    .cmp-title .dot { background: var(--site); }
-    dl { margin: 12px 0 0; display: grid; grid-template-columns: 1fr auto; gap: 10px 12px; align-items: baseline; }
-    dt { font-size: 13px; color: var(--muted); }
-    dd { margin: 0; font-size: 18px; text-align: right; }
+    .table-wrap { overflow-x: auto; margin: 0 -4px; }
+    .side { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .side th, .side td { padding: 10px 6px; border-top: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; }
+    .side thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; vertical-align: bottom; }
+    .side thead .dot { margin-right: 5px; vertical-align: 1px; }
+    .side tbody th { text-align: left; font-weight: 600; }
+    .side tbody th span { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 2px; }
+    .side td { color: var(--muted); }
+    .side td.best { color: var(--text); font-weight: 700; }
+    .tnote { margin: 8px 0 0; }
   `,
 })
 export class WebsPage {
@@ -236,6 +256,8 @@ export class WebsPage {
 
   /** ?google=ok|error|cancelado al volver de Google */
   readonly google = input<string | undefined>();
+  /** ?web=obralocal para abrir directamente una web (desde Inicio o la comparación) */
+  readonly web = input<string | undefined>();
 
   protected readonly siteId = signal<SiteId>('obralocal');
   protected readonly period = signal<Period>('7d');
@@ -262,6 +284,38 @@ export class WebsPage {
     { value: 'comparar', label: 'Comparar' },
   ];
 
+  /** Tabla "Todo de un vistazo": cada fila compara las 3 webs y marca la mejor. */
+  protected readonly sideRows = computed(() => {
+    const sites = this.data.sites;
+    const f = sites.map((s) => this.data.funnel(s.id, 7));
+    const gbp = this.data.gbp()?.fichas;
+    const row = (label: string, hint: string, vals: (number | null)[], text: (n: number) => string, higherIsBetter = true) => {
+      const nums = vals.filter((v): v is number => v !== null);
+      const best = nums.length ? (higherIsBetter ? Math.max(...nums) : Math.min(...nums)) : null;
+      return {
+        label, hint,
+        cells: vals.map((v) => ({ text: v === null ? '—' : text(v), best: v !== null && v === best && best !== 0 })),
+      };
+    };
+    const n = (v: number) => fmt(Math.round(v));
+    const rows = [
+      row('Te vieron', 'veces en Google', f.map((x) => x.vieron), n),
+      row('Entraron', 'desde Google', f.map((x) => x.entraron), n),
+      row('De 100, entran', 'que te ven en Google', f.map((x) => (x.vieron ? Math.round((x.entraron / x.vieron) * 1000) / 10 : null)),
+        (v) => `${v.toLocaleString('es-ES')} %`),
+      row('Pidieron precio', 'formulario, WhatsApp, llamada', f.map((x) => x.contactaron), n),
+      row('Crecen', 'entraron vs. semana anterior', f.map((x) => (x.entraronPrev ? delta(x.entraron, x.entraronPrev).pct : null)),
+        (v) => `${v > 0 ? '+' : ''}${v} %`),
+    ];
+    if (gbp) {
+      rows.push(
+        row('Ficha de Maps', 'vistas, 28 días', sites.map((s) => gbp[s.id]?.vistas ?? null), n),
+        row('Llamadas', 'desde la ficha, 28 días', sites.map((s) => gbp[s.id]?.llamadas ?? null), n),
+      );
+    }
+    return rows;
+  });
+
   protected readonly maxHour = computed(() => Math.max(1, ...this.data.hourly(this.siteId()).map((h) => h.personas)));
 
   protected readonly delayText = computed(() => {
@@ -287,6 +341,18 @@ export class WebsPage {
       const site = this.siteId();
       if (this.data.demo() || this.data.loading()) return;
       untracked(() => void this.data.loadToday(site));
+    });
+    // Abrir una web concreta (?web=...) o la comparación (?web=comparar)
+    effect(() => {
+      const w = this.web();
+      if (!w) return;
+      untracked(() => {
+        if (w === 'comparar') this.period.set('comparar');
+        else if (this.data.sites.some((s) => s.id === w)) {
+          this.siteId.set(w as SiteId);
+          if (this.period() === 'comparar') this.period.set('7d');
+        }
+      });
     });
     // Vuelta desde Google
     effect(() => {
