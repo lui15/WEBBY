@@ -1,0 +1,23 @@
+APK DE WEBBY
+============
+
+Aquí se guardan las versiones de la app de Android.
+
+- Webby-ultima.apk ............ la versión más reciente (instala esta).
+- Webby_AAAA-MM-DD_HH-MM.apk .. copias de cada versión, por si quieres volver a una anterior.
+
+Cómo crear un APK nuevo
+-----------------------
+Abre una terminal en la carpeta WEBBY y escribe:
+
+    npm run apk
+
+Tarda uno o dos minutos. Al terminar, el APK nuevo aparece en esta carpeta.
+
+Cómo instalarlo en el móvil
+---------------------------
+1. Pasa Webby-ultima.apk al móvil (WhatsApp a ti mismo, Google Drive o cable USB).
+2. Ábrelo y acepta "instalar apps de origen desconocido".
+3. Si ya tenías Webby, se instala encima y conservas tu sesión.
+
+Estos archivos no se suben a GitHub (son pesados y se pueden volver a generar).
